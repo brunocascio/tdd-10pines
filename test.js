@@ -78,9 +78,6 @@ describe("Purchase & Checkout Tests", () => {
 
   describe("Test Cart", () => {
     it("Cart is created succesfully", () => {
-      assert.ok(newCart());
-    });
-    it("Cart is empty", () => {
       assert.equal(newCart().isEmpty(), true);
     });
   });
