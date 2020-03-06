@@ -18,9 +18,10 @@ getUsers = () => [
   }
 ];
 
-getCarts = () => ["123456"].map(id => new Cart({ id, catalog: getCatalog() }))
+getCarts = () => ["123456"].map(id => new Cart({ id, catalog: getCatalog() }));
 
-newApp = () => new App({ users: getUsers(), carts: getCarts(), catalog: getCatalog() });
+newApp = () =>
+  new App({ users: getUsers(), carts: getCarts(), catalog: getCatalog() });
 
 newMerchantService = () =>
   new MerchantProcessorStub((amount, creditCard) => {
@@ -75,7 +76,6 @@ validBook = index => getCatalog()[index];
 invalidBook = () => "9sdus9ad8a";
 
 describe("Purchase & Checkout Tests", () => {
-
   describe("Test Cart", () => {
     it("Cart is created succesfully", () => {
       assert.equal(newCart().isEmpty(), true);
@@ -194,27 +194,28 @@ describe("Purchase & Checkout Tests", () => {
 });
 
 describe("TusLibros.com Tests", () => {
-
   it("listCart with valid clientId should return the cart items", () => {
-    const cart = newApp().listCart("123456")
+    const cart = newApp().listCart("123456");
 
     assert.ok(cart.startsWith("0|"));
-  })
+  });
 
   it("listCart with invalid clientId should fail", () => {
-    expect(() => newApp().listCart("wrong")).to.throw(Error, 'not found');
-  })
+    expect(() => newApp().listCart("wrong")).to.throw(Error, "not found");
+  });
 
   it("createCart with valid credentials", () => {
-    const app = newApp()
-    const [,cartId] = app.createCart({
-      clientId: "pepe",
-      password: "pepepass"
-    }).split('0|')
+    const app = newApp();
+    const [, cartId] = app
+      .createCart({
+        clientId: "pepe",
+        password: "pepepass"
+      })
+      .split("0|");
     const existentCart = app.listCart(cartId);
     const cart = app.getCart(cartId);
-    
-    assert.ok(existentCart.startsWith('0|'));
+
+    assert.ok(existentCart.startsWith("0|"));
     assert.equal(cart.isEmpty(), true);
   });
 
@@ -228,41 +229,93 @@ describe("TusLibros.com Tests", () => {
   });
 
   it("createCart with invalid pass", () => {
-    expect(() => newApp().createCart({
-      clientId: "pepe",
-      password: "wrong"
-    }), /1|invalid credentials/i);
+    expect(
+      () =>
+        newApp().createCart({
+          clientId: "pepe",
+          password: "wrong"
+        }),
+      /1|invalid credentials/i
+    );
   });
 
   it("addToCart with valid data", () => {
-    const app = newApp()
-    
-    const [,cartId] = app.createCart({
-      clientId: "pepe",
-      password: "pepepass"
-    }).split('0|');
+    const app = newApp();
 
-    app.addToCart({ cartId, bookISBN: "123456", bookQuantity: 2 })
-    app.addToCart({ cartId, bookISBN: "123", bookQuantity: 1 })
+    const [, cartId] = app
+      .createCart({
+        clientId: "pepe",
+        password: "pepepass"
+      })
+      .split("0|");
+
+    app.addToCart({ cartId, bookISBN: "123456", bookQuantity: 2 });
+    app.addToCart({ cartId, bookISBN: "123", bookQuantity: 1 });
 
     assert.equal(app.listCart(cartId), "0|123|1|123456|2");
   });
 
   it("addToCart with invalid cartId", () => {
-    const app = newApp()
+    const app = newApp();
 
-    expect(() => app.addToCart({ cartId: "wrong", bookISBN: "123456", bookQuantity: 2 })).to.throw(Error, /not found/i)
+    expect(() =>
+      app.addToCart({ cartId: "wrong", bookISBN: "123456", bookQuantity: 2 })
+    ).to.throw(Error, /not found/i);
   });
 
   it("addToCart with invalid book", () => {
-    const app = newApp()
-    
-    const [,cartId] = app.createCart({
-      clientId: "pepe",
-      password: "pepepass"
-    }).split('0|');
+    const app = newApp();
 
-    expect(() => app.addToCart({ cartId: cartId, bookISBN: "wrong", bookQuantity: 2 })).to.throw(Error, /Invalid item/i)
+    const [, cartId] = app
+      .createCart({
+        clientId: "pepe",
+        password: "pepepass"
+      })
+      .split("0|");
+
+    expect(() =>
+      app.addToCart({ cartId: cartId, bookISBN: "wrong", bookQuantity: 2 })
+    ).to.throw(Error, /Invalid item/i);
   });
 
+  it("addToCart with expired cart", () => {
+    const app = newApp();
+
+    const [, cartId] = app
+      .createCart(
+        {
+          clientId: "pepe",
+          password: "pepepass"
+        },
+        {
+          expiresAt: Date.now() - 30 * 60 * 1000
+        }
+      )
+      .split("0|");
+
+    expect(() =>
+      app.addToCart({ cartId: cartId, bookISBN: "123456", bookQuantity: 2 })
+    ).to.throw(Error, /expired cart/i);
+  });
+
+  it("addToCart with a cart close to expiry should works", () => {
+    const app = newApp();
+
+    const [, cartId] = app
+      .createCart(
+        {
+          clientId: "pepe",
+          password: "pepepass"
+        },
+        {
+          // 5 seconds to get expired
+          expiresAt: Date.now() + 1000 * 5
+        }
+      )
+      .split("0|");
+
+    expect(() =>
+      app.addToCart({ cartId: cartId, bookISBN: "123456", bookQuantity: 2 })
+    ).not.to.throw(Error, /expired cart/i);
+  });
 });

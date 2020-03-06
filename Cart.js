@@ -1,15 +1,9 @@
 class Cart {
   constructor(args = {}) {
-    const { catalog = [], id, items = [], updatedAt } = args;
+    const { catalog = [], id, items = [] } = args;
     this.id = id || Date.now();
     this.items = items;
     this.catalog = catalog;
-    this.updatedAt = updatedAt || Date.now();
-  }
-
-  isExpired() {
-    const thirtyMinutesInMilliseconds = 30 * 60 * 1000;
-    return this.updatedAt + thirtyMinutesInMilliseconds <= Date.now();
   }
 
   /*
@@ -35,7 +29,6 @@ class Cart {
       throw new Error("Invalid Item");
     }
     this.items.push(itemId);
-    this.updatedAt = Date.now();
     return itemId;
   }
 
