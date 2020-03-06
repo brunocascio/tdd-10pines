@@ -1,0 +1,13 @@
+{
+  "name": "tdd",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^7.1.0"
+  }
+}
