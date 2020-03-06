@@ -1,7 +1,8 @@
-class MerchantProcessorStub {
+class MerchantProcessor {
   
-  constructor(checkoutClosure) {
+  constructor(checkoutClosure, creditCards) {
     this.checkoutClosure = checkoutClosure;
+    this.creditCards = creditCards;
   }
 
   _expirationDateIsPast(month, year) {
@@ -32,9 +33,13 @@ class MerchantProcessorStub {
     return true;
   }
 
+  hasFunds(creditCard, amount) {
+    return this.creditCards.find(cc => cc.creditCardNumber == creditCard.creditCardNumber).amount >= amount
+  }
+
   debit(amount, creditCard) {
     return this.checkoutClosure(amount, creditCard)
   }
 }
 
-module.exports = MerchantProcessorStub;
+module.exports = MerchantProcessor;

@@ -2,7 +2,7 @@ const assert = require("assert");
 const { expect } = require("chai");
 const Cart = require("./Cart");
 const Cashier = require("./Cashier");
-const MerchantProcessorStub = require("./MerchantProcessorStub");
+const MerchantProcessor = require("./MerchantProcessor");
 const App = require("./App");
 
 getCatalog = () => ["12345", "123456", "123"];
@@ -20,20 +20,26 @@ getUsers = () => [
 
 getCarts = () => ["123456"].map(id => new Cart({ id, catalog: getCatalog() }));
 
-newApp = () =>
-  new App({ users: getUsers(), carts: getCarts(), catalog: getCatalog() });
+newApp = (params = {}) =>
+  new App({
+    users: params.users || getUsers(),
+    carts: params.carts || getCarts(),
+    catalog: params.catalog || getCatalog(),
+    pricesCatalog: params.pricesCatalog || getPriceCatalog(),
+    merchantService: params.merchantService || newMerchantService()
+  });
 
 newMerchantService = () =>
-  new MerchantProcessorStub((amount, creditCard) => {
-    if (creditCard.amount < amount) {
+  new MerchantProcessor(function(amount, creditCard) {
+    if (!this.hasFunds(creditCard, amount)) {
       throw new Error("1|Insufficient funds");
     } else {
       return `0|${Date.now()}`;
     }
-  });
+  }, getCreditCards());
 
 newMerchantServiceDown = () =>
-  new MerchantProcessorStub((amount, creditCard) => {
+  new MerchantProcessor((amount, creditCard) => {
     throw new Error("Service is down");
   });
 
@@ -46,18 +52,30 @@ newValidCreditCard = {
 
 newValidCreditCardWithoutAmount = {
   ...newValidCreditCard,
+  creditCardNumber: "1234-4567-8901-1237",
   amount: 0
 };
 
 invalidCreditCard = {
   ...newValidCreditCard,
+  creditCardNumber: "1234-4567-8901-1235",
   creditCardOwner:
     "Pepe PerezPepe PerezPepe PerezPepe PerezPepe PerezPepe PerezPepe Perez"
 };
 
 expiredCreditCard = {
   ...newValidCreditCard,
+  creditCardNumber: "1234-4567-8901-1236",
   creditCardExpiration: "012020"
+};
+
+getCreditCards = () => {
+  return [
+    newValidCreditCard,
+    newValidCreditCardWithoutAmount,
+    invalidCreditCard,
+    expiredCreditCard
+  ];
 };
 
 newCashier = (cart, creditCard, merchantService) => {
@@ -318,4 +336,60 @@ describe("TusLibros.com Tests", () => {
       app.addToCart({ cartId: cartId, bookISBN: "123456", bookQuantity: 2 })
     ).not.to.throw(Error, /expired cart/i);
   });
+
+  it("checkOutCart success", () => {
+    const app = newApp();
+
+    const [, cartId] = app
+      .createCart({
+        clientId: "pepe",
+        password: "pepepass"
+      })
+      .split("0|");
+
+    app.addToCart({ cartId: cartId, bookISBN: "123456", bookQuantity: 2 });
+
+    const result = app.checkout({
+      cartId,
+      ccn: newValidCreditCard.creditCardNumber,
+      cced: newValidCreditCard.creditCardExpiration,
+      cco: newValidCreditCard.creditCardOwner
+    });
+
+    assert.ok(result.startsWith("0|"));
+  });
+
+  it("checkOutCart should fail if cart is empty", () => {
+    const app = newApp();
+
+    const [, cartId] = app
+      .createCart({
+        clientId: "pepe",
+        password: "pepepass"
+      })
+      .split("0|");
+
+    expect(() =>
+      app.checkout({
+        cartId,
+        ccn: newValidCreditCard.creditCardNumber,
+        cced: newValidCreditCard.creditCardExpiration,
+        cco: newValidCreditCard.creditCardOwner
+      })
+    ).to.throw(Error, /the cart is empty/i)
+  });
+
+  it("checkOutCart should fail if cart is invalid", () => {
+    const app = newApp();
+
+    expect(() =>
+      app.checkout({
+        cartId: "wrong",
+        ccn: newValidCreditCard.creditCardNumber,
+        cced: newValidCreditCard.creditCardExpiration,
+        cco: newValidCreditCard.creditCardOwner
+      })
+    ).to.throw(Error, /cart not found/i)
+  });
+
 });

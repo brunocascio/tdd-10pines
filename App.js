@@ -1,10 +1,13 @@
 const Cart = require("./Cart");
+const Cashier = require("./Cashier");
 
 class App {
-  constructor({ users = [], carts = {}, catalog = [] }) {
+  constructor({ users = [], carts = {}, catalog = [], pricesCatalog = [], merchantService }) {
     this.users = users;
     this.carts = carts;
     this.catalog = catalog;
+    this.pricesCatalog = pricesCatalog;
+    this.merchantService = merchantService;
     this.carts.forEach(c => this._updateCartExpiration(c.getId()));
   }
 
@@ -50,19 +53,32 @@ class App {
 
   listCart(cartId) {
     const cart = this.getCart(cartId);
-    this._assertExpiredCart(cart.getId());
-    this._updateCartExpiration(cart.getId());
     return `0|${cart.itemsToString()}`;
   }
 
   addToCart({ cartId, bookISBN, bookQuantity }) {
     const cart = this.getCart(cartId);
-    this._assertExpiredCart(cart.getId());
     for (let i = 0; i < bookQuantity; i++) {
       cart.addItem(bookISBN);
     }
-    this._updateCartExpiration(cart.getId());
     return "0|OK";
+  }
+
+  checkout({ cartId, ccn, cced, cco }) {
+    const cart = this.getCart(cartId);
+    const creditCard = {
+        creditCardNumber: ccn,
+        creditCardExpiration: cced,
+        creditCardOwner: cco
+    }
+    const cashier = new Cashier(
+      cart,
+      this.pricesCatalog,
+      this.merchantService,
+      creditCard
+    );
+
+    return cashier.checkout();
   }
 }
 
